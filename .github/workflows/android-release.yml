@@ -1,0 +1,80 @@
+name: Android Release
+
+on:
+  push:
+    tags:
+      - 'v*'  # 当推送带有 v 前缀的标签时触发，例如 v1.0.0
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # 获取所有历史记录和标签
+
+      - name: 设置 JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: 设置 Gradle 权限
+        run: chmod +x ./gradlew
+
+      - name: 创建 keystore.properties
+        run: |
+          echo "STORE_FILE=${{ secrets.STORE_FILE }}" > keystore.properties
+          echo "STORE_PASSWORD=${{ secrets.STORE_PASSWORD }}" >> keystore.properties
+          echo "RELEASE_ALIAS=${{ secrets.RELEASE_ALIAS }}" >> keystore.properties
+          echo "RELEASE_PASSWORD=${{ secrets.RELEASE_PASSWORD }}" >> keystore.properties
+          echo "DEBUG_ALIAS=${{ secrets.DEBUG_ALIAS }}" >> keystore.properties
+          echo "DEBUG_PASSWORD=${{ secrets.DEBUG_PASSWORD }}" >> keystore.properties
+          echo "VERSION_CODE=${{ secrets.VERSION_CODE }}" >> keystore.properties
+
+      - name: 解码签名文件
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > ${{ secrets.STORE_FILE }}
+
+      - name: 构建发布版本
+        run: ./gradlew assembleRelease
+
+      - name: 获取版本信息
+        id: get_version
+        run: |
+          VERSION_NAME=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)
+          VERSION_CODE=$(grep -oP 'VERSION_CODE=\K\d+' keystore.properties)
+          echo "version_name=$VERSION_NAME" >> $GITHUB_OUTPUT
+          echo "version_code=$VERSION_CODE" >> $GITHUB_OUTPUT
+          echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: 创建 Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.ref }}
+          name: Release ${{ steps.get_version.outputs.tag }} (版本号: ${{ steps.get_version.outputs.version_code }})
+          draft: false
+          prerelease: false
+          files: |
+            app/build/outputs/apk/release/app-release.apk
+          body: |
+            ## 版本 ${{ steps.get_version.outputs.tag }}
+            
+            ### 版本信息
+            - 版本名称: ${{ steps.get_version.outputs.version_name }}
+            - 版本号: ${{ steps.get_version.outputs.version_code }}
+            
+            ### 更新内容
+            - 自动构建发布
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 更新 VERSION_CODE 密钥
+        uses: gliech/create-github-secret-action@v1
+        with:
+          name: VERSION_CODE
+          value: ${{ steps.get_version.outputs.version_code }}
+          pa_token: ${{ secrets.PA_TOKEN }}

@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">Reverse Image Search</string>
+    <string name="saucenao">SauceNao</string>
+    <string name="ascii2d">Ascii2d</string>
+    <string name="google_lens">GoogleLens</string>
+    <string name="trace_moe">Trace.moe</string>
+    <string name="iqdb">IQDB</string>
+</resources>
