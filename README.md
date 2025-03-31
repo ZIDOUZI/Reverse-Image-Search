@@ -21,6 +21,7 @@ Upload file using browser is a terrible experience, also download or copy a url 
 - GoogleLens
 - Trace.moe
 - IQDB
+- Yandex
 
 ## License
 
