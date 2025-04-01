@@ -8,7 +8,7 @@ import zdz.revimg.utils.scope
 
 class GoogleLensActivity : Activity() {
     companion object {
-        const val QUERY_URL = "https://lens.google.com/uploadbyurl?url=%s"
+        const val QUERY_URL = "https://www.google.com/searchbyimage?&image_url=%s"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {

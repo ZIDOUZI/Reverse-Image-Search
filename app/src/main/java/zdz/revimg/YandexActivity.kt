@@ -8,7 +8,7 @@ import zdz.revimg.utils.scope
 
 class YandexActivity : Activity() {
     companion object {
-        const val QUERY_URL = "https://yandex.ru/images/search?%s"
+        const val QUERY_URL = "https://yandex.com/images/search?url=%s&rpt=imageview"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
