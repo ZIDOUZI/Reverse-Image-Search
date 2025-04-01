@@ -1,15 +1,15 @@
 package zdz.revimg.utils
 
+import android.R
 import android.app.Activity
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
-import android.os.Build
-import android.os.Parcelable
 import android.util.Log
 import android.util.Patterns
 import android.widget.Toast
+import androidx.core.app.NotificationCompat
 import androidx.core.net.toUri
 import java.io.*
 import java.net.HttpURLConnection
@@ -19,9 +19,107 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import androidx.core.graphics.scale
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.launch
+import zdz.revimg.BuildConfig
 import java.net.URLEncoder
+import kotlin.math.sqrt
 
 val scope = CoroutineScope(Dispatchers.Default)
+
+fun Activity.handleCreate(queryURL: String) {
+    scope.launch {
+        awaitAll(
+            async { handleIntent(queryURL) },
+            async { checkUpdate()?.let { updateInfo -> notify(updateInfo) } })
+    }
+}
+
+data class UpdateInfo(
+    val currentVersion: String,
+    val latestVersion: String,
+    val releaseUrl: String,
+    val releaseNotes: String,
+    val publishedAt: String
+)
+
+suspend fun checkUpdate(): UpdateInfo? = withContext(Dispatchers.IO) {
+    try {
+        // 获取GitHub仓库的最新发布版本
+        val url = URL("https://api.github.com/repos/ZIDOUZI/Reverse-Image-Search/releases/latest")
+        val connection = (url.openConnection() as HttpURLConnection).apply {
+            requestMethod = "GET"
+            setRequestProperty("Accept", "application/vnd.github.v3+json")
+            connectTimeout = 10000
+            readTimeout = 10000
+        }
+
+        val responseCode = connection.responseCode
+        if (responseCode == HttpURLConnection.HTTP_OK) {
+            val response = connection.inputStream.bufferedReader().use { it.readText() }
+            val jsonResponse = JSONObject(response)
+
+            // 解析GitHub API响应
+            val latestVersion = jsonResponse.getString("tag_name").removePrefix("v")
+            val releaseUrl = jsonResponse.getString("html_url")
+            val releaseNotes = jsonResponse.getString("body")
+            val publishedAt = jsonResponse.getString("published_at")
+
+            // 获取当前应用版本
+            val currentVersion = BuildConfig.VERSION
+
+            // 比较版本号
+            if (isNewerVersion(currentVersion, latestVersion)) {
+                return@withContext UpdateInfo(
+                    currentVersion = currentVersion,
+                    latestVersion = latestVersion,
+                    releaseUrl = releaseUrl,
+                    releaseNotes = releaseNotes,
+                    publishedAt = publishedAt
+                )
+            }
+        }
+        return@withContext null
+    } catch (e: Exception) {
+        Log.e("UpdateChecker", "检查更新失败", e)
+        return@withContext null
+    }
+}
+
+fun Activity.notify(info: UpdateInfo) {
+    with(Channels.MESSAGE) {
+        register()
+        createAndSend {
+            setSmallIcon(R.drawable.ic_dialog_info)
+            setContentTitle("发现新版本: ${info.latestVersion}")
+            setContentText("点击打开下载链接")
+            setStyle(NotificationCompat.BigTextStyle().bigText(info.releaseNotes))
+            setContentIntent(activityIntent(viewContent(info.releaseUrl.toUri(), "text/plain")))
+            setAutoCancel(true)
+            priority = NotificationCompat.PRIORITY_DEFAULT
+        }
+    }
+}
+
+private fun isNewerVersion(currentVersion: String, latestVersion: String): Boolean {
+    try {
+        val current = currentVersion.split(".").map { it.toInt() }
+        val latest = latestVersion.split(".").map { it.toInt() }
+
+        // 比较主版本号、次版本号和修订号
+        for (i in 0 until minOf(current.size, latest.size)) {
+            if (latest[i] > current[i]) return true
+            if (latest[i] < current[i]) return false
+        }
+
+        // 如果前面的版本号都相同，但最新版本有更多的版本号段
+        return latest.size > current.size
+    } catch (e: Exception) {
+        Log.e("UpdateChecker", "版本比较失败", e)
+        return false
+    }
+}
 
 suspend fun Activity.handleIntent(queryURL: String) {
     val uriString = when (intent.action) {
@@ -29,10 +127,7 @@ suspend fun Activity.handleIntent(queryURL: String) {
         Intent.ACTION_VIEW, Intent.ACTION_SEND -> run {
 //            Debug.waitForDebugger()
             if (intent.type?.startsWith("image/") == true) {
-                val imgUrl = intent.data
-                    ?: intent.clipData?.getItemAt(0)?.uri
-                    ?: intent.getExtra<Uri>(Intent.EXTRA_STREAM)
-                imgUrl?.let { processImageUri(it) }?.let {
+                intent.uri?.let { processImageUri(it) }?.let {
                     try {
                         return@run upload(it)
                     } catch (e: Exception) {
@@ -56,10 +151,9 @@ suspend fun Activity.handleIntent(queryURL: String) {
 
     try {
         withContext(Dispatchers.Main) {
-            startActivity(Intent.ACTION_VIEW) {
-                data = queryURL.replace("%s", URLEncoder.encode(uriString, "UTF-8")).toUri()
-                flagNewTask()
-            }
+            viewContent(
+                queryURL.replace("%s", URLEncoder.encode(uriString, "UTF-8")).toUri()
+            ).let { startActivity(it) }
             toastAndFinish("已打开")
         }
     } catch (e: Exception) {
@@ -69,14 +163,6 @@ suspend fun Activity.handleIntent(queryURL: String) {
 }
 
 private fun String.isValidUrl(): Boolean = Patterns.WEB_URL.matcher(this).matches()
-
-private inline fun <reified T : Parcelable> Intent.getExtra(name: String): T? =
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        getParcelableExtra(name, T::class.java)
-    } else {
-        @Suppress("DEPRECATION")
-        getParcelableExtra<T>(name)
-    }
 
 fun Activity.toastAndFinish(msg: String) {
     runOnUiThread { Toast.makeText(this, msg, Toast.LENGTH_SHORT).show() }
@@ -94,36 +180,33 @@ fun Activity.processImageUri(uri: Uri): Bitmap? {
     }
 }
 
-// 缩放图片到合适的尺寸
-private fun Bitmap.scaleBitmap(maxWidth: Int = 1024, maxHeight: Int = 1024): Bitmap {
-    // 获取原始尺寸
-    val width = width
-    val height = height
+private fun Bitmap.scaleBitmap(totalPixels: Int = 65536): Bitmap {
+    if (width * height <= totalPixels) return this
 
-    // 如果图片已经小于目标尺寸，直接返回
+    val ratio = sqrt(totalPixels.toDouble() / (width * height)).toFloat()
+    val newWidth = (width * ratio).toInt()
+    val newHeight = (height * ratio).toInt()
+
+    return scale(newWidth, newHeight).also { if (it != this) recycle() }
+}
+
+/*private fun Bitmap.scaleBitmap(maxWidth: Int = 256, maxHeight: Int = 256): Bitmap {
     if (width <= maxWidth && height <= maxHeight) return this
 
     val ratio = minOf(maxWidth.toFloat() / width, maxHeight.toFloat() / height)
 
-    // 计算新尺寸
     val newWidth = (width * ratio).toInt()
     val newHeight = (height * ratio).toInt()
 
-    // 缩放图片
-    return scale(newWidth, newHeight).also {
-        // 如果创建了新的Bitmap，释放原始Bitmap
-        if (it != this) recycle()
-    }
-}
+    return scale(newWidth, newHeight).also { if (it != this) recycle() }
+}*/
 
 suspend fun upload(img: Bitmap): String = withContext(Dispatchers.IO) {
-    // 将Bitmap转换为字节数组
     val imageBytes = ByteArrayOutputStream().use {
         img.compress(Bitmap.CompressFormat.JPEG, 90, it)
         it.toByteArray()
     }
 
-    // 创建一个唯一的文件名
     val fileName = "image_${System.currentTimeMillis()}.jpg"
 
     // 准备multipart请求
@@ -131,7 +214,6 @@ suspend fun upload(img: Bitmap): String = withContext(Dispatchers.IO) {
     val lineEnd = "\r\n"
     val twoHyphens = "--"
 
-    // 创建URL连接
     val url = URL("https://api.resmush.it/?qlty=60")
     val connection = (url.openConnection() as HttpURLConnection).apply {
         doInput = true
@@ -145,7 +227,6 @@ suspend fun upload(img: Bitmap): String = withContext(Dispatchers.IO) {
         setRequestProperty("Content-Type", "multipart/form-data; boundary=$boundary")
     }
 
-    // 写入请求体
     DataOutputStream(connection.outputStream).use {
         it.writeBytes("$twoHyphens$boundary$lineEnd")
         it.writeBytes("Content-Disposition: form-data; name=\"files\"; filename=\"$fileName\"$lineEnd")
@@ -158,13 +239,11 @@ suspend fun upload(img: Bitmap): String = withContext(Dispatchers.IO) {
         it.flush()
     }
 
-    // 获取响应
     val responseCode = connection.responseCode
     if (responseCode == HttpURLConnection.HTTP_OK) {
         val inputStream = connection.inputStream
         val response = inputStream.bufferedReader().use { it.readText() }
 
-        // 解析JSON响应获取图像URL
         val jsonResponse = JSONObject(response)
         val destinationUrl = jsonResponse.optString("dest")
 

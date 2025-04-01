@@ -2,9 +2,7 @@ package zdz.revimg
 
 import android.app.Activity
 import android.os.Bundle
-import kotlinx.coroutines.launch
-import zdz.revimg.utils.handleIntent
-import zdz.revimg.utils.scope
+import zdz.revimg.utils.handleCreate
 
 class Ascii2dActivity : Activity() {
     companion object {
@@ -14,8 +12,6 @@ class Ascii2dActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        scope.launch {
-            handleIntent(QUERY_URL)
-        }
+        handleCreate(QUERY_URL)
     }
 }
