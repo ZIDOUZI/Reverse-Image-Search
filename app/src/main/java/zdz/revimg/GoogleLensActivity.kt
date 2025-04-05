@@ -6,7 +6,7 @@ import zdz.revimg.utils.handleCreate
 
 class GoogleLensActivity : Activity() {
     companion object {
-        const val QUERY_URL = "https://www.google.com/searchbyimage?&image_url=%s"
+        const val QUERY_URL = "https://www.google.com/searchbyimage?&image_url=%s&client=firefox-bd"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
