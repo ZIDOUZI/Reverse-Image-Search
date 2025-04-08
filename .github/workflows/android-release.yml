@@ -2,7 +2,7 @@ name: Android Release
 
 on:
   push:
-    tags: [ 'v*' ]  # 当推送带有 v 前缀的标签时触发，例如 v1.0.0
+    tags: [ '*' ]  # 当推送任何标签时触发
     branches: [ 'main' ]  # 仅在 main 分支上触发
   workflow_dispatch:
     inputs:
@@ -57,7 +57,7 @@ jobs:
           elif [ "${{ github.event_name }}" = "push" ]; then
             # 从标签中提取版本号
             TAG_VERSION="${GITHUB_REF#refs/tags/}"
-            VERSION="${TAG_VERSION}"
+              VERSION="${TAG_VERSION}"
           else
             echo "Version Not Defined"
             exit 1
@@ -171,14 +171,14 @@ jobs:
         id: create_release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: v${{ steps.get_current_version.outputs.current_version }}
+          tag_name: ${{ steps.get_current_version.outputs.current_version }}
           name: "Release v${{ steps.get_current_version.outputs.current_version }} (版本号: ${{ steps.calculate_new_version.outputs.new_version_code }})"
           draft: false
           prerelease: false
           files: |
             app/build/outputs/apk/release/app-release.apk
           body: |
-            ## 版本 v${{ steps.get_current_version.outputs.current_version }}-${{ steps.get_current_version.outputs.current_version_name }}
+            ## 版本 ${{ steps.get_current_version.outputs.current_version }}-${{ steps.get_current_version.outputs.current_version_name }}
             
             ### 版本信息
             - 版本号: ${{ steps.get_current_version.outputs.current_version }}
