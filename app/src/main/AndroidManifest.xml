@@ -181,6 +181,23 @@
                 <data android:mimeType="text/plain" />
             </intent-filter>
         </activity>
+        
+        <!-- API接口Activity，用于处理其他应用的请求 -->
+        <activity
+            android:name=".ApiActivity"
+            android:icon="@mipmap/ic_launcher"
+            android:exported="true">
+            <!-- 只处理自定义API意图，不在分享菜单中显示 -->
+            <intent-filter>
+                <action android:name="zdz.revimg.action.SEARCH_IMAGE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="zdz.revimg.action.GET_SEARCH_ENGINES" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
     </application>
 
 </manifest>

@@ -2,8 +2,8 @@ name: Android Release
 
 on:
   push:
-    tags:
-      - 'v*'  # 当推送带有 v 前缀的标签时触发，例如 v1.0.0
+    tags: [ 'v*' ]  # 当推送带有 v 前缀的标签时触发，例如 v1.0.0
+    branches: [ 'main' ]  # 仅在 main 分支上触发
   workflow_dispatch:
     inputs:
       version:
@@ -55,11 +55,12 @@ jobs:
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ github.event.inputs.version }}" ]; then
             VERSION="${{ github.event.inputs.version }}"
           elif [ "${{ github.event_name }}" = "push" ]; then
-            # 从标签中提取版本号，去掉 v 前缀
-            TAG_VERSION="${GITHUB_REF#refs/tags/v}"
+            # 从标签中提取版本号
+            TAG_VERSION="${GITHUB_REF#refs/tags/}"
             VERSION="${TAG_VERSION}"
           else
-            VERSION="${{ vars.VERSION || '1.0.0' }}"
+            echo "Version Not Defined"
+            exit 1
           fi
           
           # 处理版本名称，优先使用手动输入的版本名称

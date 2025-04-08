@@ -1,0 +1,8 @@
+jdk:
+  - openjdk17
+before_install:
+  - echo "VERSION=1.0.0" > keystore.properties
+  - echo "VERSION_CODE=4" > keystore.properties
+  - ./gradlew clean
+install:
+  - ./gradlew :api:publishToMavenLocal

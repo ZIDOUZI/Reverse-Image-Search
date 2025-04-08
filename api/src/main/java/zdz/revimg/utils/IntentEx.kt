@@ -116,3 +116,4 @@ inline fun Activity.startActivityForResult(
     data: Uri? = null,
     handler: SIntent.() -> Unit
 ) = startActivityForResult(Intent(action, data, handler), requestCode)
+//endregion

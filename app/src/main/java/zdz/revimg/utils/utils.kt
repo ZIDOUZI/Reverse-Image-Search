@@ -1,6 +1,5 @@
 package zdz.revimg.utils
 
-import android.R
 import android.app.Activity
 import android.content.Intent
 import android.graphics.Bitmap
@@ -91,7 +90,7 @@ fun Activity.notify(info: UpdateInfo) {
     with(Channels.MESSAGE) {
         register()
         createAndSend {
-            setSmallIcon(R.drawable.ic_dialog_info)
+            setSmallIcon(android.R.drawable.ic_dialog_info)
             setContentTitle("发现新版本: ${info.latestVersion}")
             setContentText("点击打开下载链接")
             setStyle(NotificationCompat.BigTextStyle().bigText(info.releaseNotes))
@@ -126,17 +125,16 @@ suspend fun Activity.handleIntent(queryURL: String) {
         Intent.ACTION_PROCESS_TEXT -> intent.getStringExtra(Intent.EXTRA_PROCESS_TEXT)
         Intent.ACTION_VIEW, Intent.ACTION_SEND -> run {
 //            Debug.waitForDebugger()
-            if (intent.type?.startsWith("image/") == true) {
+            if (intent.type?.startsWith("image/") != true) null else {
                 intent.uri?.let { processImageUri(it) }?.let {
                     try {
-                        return@run upload(it)
+                        upload(it)
                     } catch (e: Exception) {
                         Log.e("ShareReceiver", "上传失败", e)
                         return toastAndFinish("上传失败: ${e.message}")
                     }
                 }
             }
-            null
         } ?: intent.dataString ?: intent.getStringExtra(Intent.EXTRA_TEXT)
 
         else -> null

@@ -20,4 +20,4 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "Reverse Image Search"
-include(":app")
+include(":app", ":api")

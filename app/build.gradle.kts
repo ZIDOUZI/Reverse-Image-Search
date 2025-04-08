@@ -84,10 +84,10 @@ android {
 dependencies {
 
     implementation(libs.androidx.core.ktx)
-    // 添加Kotlin协程支持
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.appcompat)
+    implementation(project(":api"))
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
