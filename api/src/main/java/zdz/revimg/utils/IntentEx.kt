@@ -11,6 +11,7 @@ import android.os.Build
 import android.os.Parcelable
 import androidx.core.net.toUri
 import java.io.File
+import java.io.Serializable
 import android.content.Intent as SIntent
 
 //region Native Constructor enhancement
@@ -74,12 +75,23 @@ fun SIntent.createChooser(
     confirm: Boolean = true
 ) = if (confirm) SIntent.createChooser(this, title, sender) else this
 
-inline fun <reified T : Parcelable> SIntent.getExtra(name: String): T? =
+inline fun <reified T : Parcelable> SIntent.parcelableExtra(name: String): T? =
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         getParcelableExtra(name, T::class.java)
     } else {
         @Suppress("DEPRECATION")
         getParcelableExtra<T>(name)
+    }
+
+inline fun <reified T : Serializable> SIntent.serializableExtra(name: String): T? =
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        getSerializableExtra(name, T::class.java)
+    } else {
+        @Suppress("DEPRECATION")
+        when (val result = getSerializableExtra(name)) {
+            is T -> result
+            else -> null
+        }
     }
 
 private const val FLAG_NEW_TASK = SIntent.FLAG_ACTIVITY_NEW_TASK or
@@ -88,7 +100,7 @@ private const val FLAG_NEW_TASK = SIntent.FLAG_ACTIVITY_NEW_TASK or
 
 fun SIntent.flagNewTask() = apply { flags = FLAG_NEW_TASK }
 
-val SIntent.uri get() = data ?: clipData?.getItemAt(0)?.uri ?: getExtra(SIntent.EXTRA_STREAM)
+val SIntent.uri get() = data ?: clipData?.getItemAt(0)?.uri ?: parcelableExtra(SIntent.EXTRA_STREAM)
 //endregion
 
 fun ComponentName.mainActivity() = SIntent.makeMainActivity(this)

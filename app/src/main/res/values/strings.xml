@@ -1,9 +1,9 @@
 <resources>
     <string name="app_name">Reverse Image Search</string>
-    <string name="saucenao">SauceNao</string>
-    <string name="ascii2d">Ascii2d</string>
-    <string name="google_lens">GoogleLens</string>
-    <string name="trace_moe">Trace.moe</string>
-    <string name="iqdb">IQDB</string>
-    <string name="yandex">Yandex</string>
+    <string name="saucenao" translatable="false">SauceNao</string>
+    <string name="ascii2d" translatable="false">Ascii2d</string>
+    <string name="google_lens" translatable="false">GoogleLens</string>
+    <string name="trace_moe" translatable="false">Trace.moe</string>
+    <string name="iqdb" translatable="false">IQDB</string>
+    <string name="yandex" translatable="false">Yandex</string>
 </resources>
